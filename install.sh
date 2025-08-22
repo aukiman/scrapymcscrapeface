@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/<your-github>/<your-repo>/main/release/webscraper-YYYYMMDD.tar.gz}"
+REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/webscraper.v1.tar.gz}"
 APP_DIR="${APP_DIR:-$HOME/webscraper}"
 
 echo "[+] Installing dependencies..."
@@ -12,7 +12,7 @@ mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
 echo "[+] Downloading code tarball..."
-curl -fsSL "$REPO_TARBALL_URL" -o webscraper.tar.gz
+curl -fsSL -L "$REPO_TARBALL_URL" -o webscraper.tar.gz
 tar -xzf webscraper.tar.gz --strip-components=1
 
 echo "[+] Creating Python venv..."
