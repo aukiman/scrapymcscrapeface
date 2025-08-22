@@ -19,7 +19,7 @@ echo "[+] Creating Python venv..."
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip wheel
-pip install scrapy scrapyd scrapyd-client scrapy-playwright fastapi jinja2 uvicorn[standard] httpx python-multipart playwright
+pip install -r requirements.txt
 
 echo "[+] Installing Playwright browser deps..."
 python -m playwright install chromium

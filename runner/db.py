@@ -1,12 +1,12 @@
-import sqlite3
+import os, sqlite3
 from pathlib import Path
 
-DB_PATH = Path.home() / "webscraper" / "webui.sqlite"
-
 class ProgressStore:
-    def __init__(self):
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(DB_PATH) as c:
+    def __init__(self, db_path=None):
+        self.db_path = db_path or os.environ.get("WEBSCRAPER_DB_PATH", str(Path.home() / "webscraper" / "webui.sqlite"))
+        db_dir = Path(self.db_path).parent
+        db_dir.mkdir(parents=True, exist_ok=True)
+        with self._conn() as c:
             c.execute("""
             CREATE TABLE IF NOT EXISTS jobs(
               job_id TEXT PRIMARY KEY,
@@ -24,18 +24,9 @@ class ProgressStore:
               started_at TEXT, ended_at TEXT
             );
             """)
-            c.execute("""
-            CREATE TABLE IF NOT EXISTS url_queue(
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              label TEXT, url TEXT NOT NULL,
-              spider TEXT DEFAULT 'generic',
-              allow_js INTEGER DEFAULT 0,
-              status TEXT DEFAULT 'queued'
-            );
-            """)
             c.commit()
 
-    def _conn(self): return sqlite3.connect(DB_PATH)
+    def _conn(self): return sqlite3.connect(self.db_path)
 
     def create_job(self, job_id, spider, start_url, allow_js, output_path):
         with self._conn() as c:
@@ -70,6 +61,8 @@ class ProgressStore:
     def bump_bytes(self, job_id, n): self._bump(job_id, "bytes", n)
 
     def _bump(self, job_id, col, n):
+        if col not in ("items", "pages", "bytes"):
+            raise ValueError(f"Invalid column name for bumping: {col}")
         with self._conn() as c:
             c.execute(f"UPDATE jobs SET {col}={col}+? WHERE job_id=?", (n, job_id))
             c.commit()
@@ -100,3 +93,7 @@ class ProgressStore:
         with self._conn() as c:
             c.execute("UPDATE jobs SET pause_requested=1 WHERE job_id=?", (job_id,))
             c.commit()
+
+    def get_job_for_download(self, job_id):
+        with self._conn() as c:
+            return c.execute("SELECT output_path, status FROM jobs WHERE job_id=?", (job_id,)).fetchone()

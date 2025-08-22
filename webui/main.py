@@ -1,4 +1,4 @@
-import os, uuid, pathlib, sqlite3
+import os, uuid, pathlib
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -13,6 +13,7 @@ app = FastAPI()
 store = ProgressStore()
 SCRAPYD_URL = os.environ.get("SCRAPYD_URL", "http://127.0.0.1:6800")
 PROJECT = os.environ.get("SCRAPY_PROJECT", "sitecrawler")
+OUTPUT_DIR = os.environ.get("WEBSCRAPER_OUTPUT_DIR", str(pathlib.Path.home() / "webscraper" / "outputs"))
 client = ScrapydClient(SCRAPYD_URL)
 
 def render(name, **ctx):
@@ -29,7 +30,7 @@ async def run(spider: str = Form("generic"),
               allow_js: str = Form("false"),
               max_pages: int = Form(100)):
     job_id = str(uuid.uuid4())
-    out_dir = pathlib.Path.home() / "webscraper" / "outputs"
+    out_dir = pathlib.Path(OUTPUT_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{spider}-{job_id}.jsonl"
 
@@ -42,7 +43,6 @@ async def run(spider: str = Form("generic"),
         "start_url": start_url,
         "allow_js": allow_js,
         "max_pages": str(max_pages),
-        "job_id": job_id,
     }
     await client.schedule(PROJECT, spider, **extra)
     return RedirectResponse("/", 303)
@@ -59,8 +59,7 @@ async def pause(job_id: str):
 
 @app.get("/download/{job_id}")
 async def download(job_id: str):
-    with sqlite3.connect(store._conn().database) as c:
-        row = c.execute("SELECT output_path, status FROM jobs WHERE job_id=?", (job_id,)).fetchone()
+    row = store.get_job_for_download(job_id)
     if row and os.path.exists(row[0]) and row[1] in ("finished","paused","cancelled"):
         return FileResponse(row[0], filename=os.path.basename(row[0]))
     return RedirectResponse("/", 303)

@@ -14,7 +14,7 @@ A lightweight web scraping stack for **Ubuntu 20.04+**:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip wheel
-pip install scrapy scrapyd scrapyd-client scrapy-playwright fastapi jinja2 uvicorn[standard] httpx python-multipart playwright
+pip install -r requirements.txt
 python -m playwright install chromium
 python -m playwright install-deps || true
 
