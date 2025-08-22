@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% block content %}
+<h2>Run a Job</h2>
+<form method="post" action="/run">
+  <div class="grid">
+    <input name="start_url" placeholder="https://example.org" required>
+    <select name="spider"><option value="generic">generic</option></select>
+  </div>
+  <div class="grid">
+    <label><input type="checkbox" name="allow_js" value="true"> Use Playwright (JS)</label>
+    <input type="number" name="max_pages" value="100" min="1">
+  </div>
+  <button type="submit">Start</button>
+</form>
+
+<h2>Jobs</h2>
+<table>
+<thead><tr><th>Job</th><th>Spider</th><th>Status</th><th>Items</th><th>Pages</th><th>Bytes</th><th>Output (bytes)</th><th>Actions</th></tr></thead>
+<tbody>
+{% for j in jobs %}
+<tr>
+  <td class="mono">{{ j[0][:8] }}</td>
+  <td>{{ j[1] }}</td>
+  <td>{{ j[3] }}</td>
+  <td>{{ j[4] }}</td>
+  <td>{{ j[5] }}</td>
+  <td>{{ j[6] }}</td>
+  <td>{{ j[7] }}</td>
+  <td>
+    {% if j[3] == "running" %}
+      <form method="post" action="/pause/{{ j[0] }}" style="display:inline"><button>Pause</button></form>
+      <form method="post" action="/cancel/{{ j[0] }}" style="display:inline"><button class="contrast">Cancel</button></form>
+    {% elif j[3] in ["finished","paused","cancelled"] %}
+      <a href="/download/{{ j[0] }}">Download</a>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}

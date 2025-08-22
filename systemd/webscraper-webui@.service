@@ -1,0 +1,15 @@
+[Unit]
+Description=WebScraper WebUI (%i)
+After=network.target webscraper-scrapyd@%i.service
+
+[Service]
+User=%i
+WorkingDirectory=/home/%i/webscraper
+Environment=PATH=/home/%i/webscraper/.venv/bin
+Environment=SCRAPYD_URL=http://127.0.0.1:6800
+Environment=SCRAPY_PROJECT=sitecrawler
+ExecStart=/home/%i/webscraper/.venv/bin/uvicorn webui.main:app --host 0.0.0.0 --port 8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

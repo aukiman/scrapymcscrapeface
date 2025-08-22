@@ -1,0 +1,13 @@
+[Unit]
+Description=WebScraper Scrapyd (%i)
+After=network.target
+
+[Service]
+User=%i
+WorkingDirectory=/home/%i/webscraper
+Environment=PATH=/home/%i/webscraper/.venv/bin
+ExecStart=/home/%i/webscraper/.venv/bin/scrapyd
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
