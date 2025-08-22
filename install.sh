@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/<your-github>/<your-repo>/main/release/webscraper-YYYYMMDD.tar.gz}"
+REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/webscraper.v1.tar.gz}"
 APP_DIR="${APP_DIR:-$HOME/webscraper}"
 
 echo "[+] Installing dependencies..."
@@ -19,7 +19,7 @@ echo "[+] Creating Python venv..."
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip wheel
-pip install scrapy scrapyd scrapyd-client scrapy-playwright fastapi jinja2 uvicorn[standard] httpx python-multipart playwright
+pip install -r requirements.txt
 
 echo "[+] Installing Playwright browser deps..."
 python -m playwright install chromium
