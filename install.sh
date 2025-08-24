@@ -14,18 +14,14 @@ cd "$APP_DIR"
 echo "[+] Downloading code tarball..."
 curl -fsSL -L "$REPO_TARBALL_URL" -o /tmp/webscraper.tar.gz
 
-# Create/own the app dir (don’t extract into a root-owned folder)
-mkdir -p "$APP_DIR"
-# If this folder has root-owned leftovers from a previous run, fix them:
-if [ ! -w "$APP_DIR" ]; then
-  sudo chown -R "$(id -un)":"$(id -gn)" "$APP_DIR"
-fi
+# Stop services if running (ignore errors)
+sudo systemctl stop "webscraper-webui@$(id -un)" "webscraper-scrapyd@$(id -un)" 2>/dev/null || true
 
-# Optional: start with a clean tree (comment out if you want to preserve local changes)
-rm -rf "$APP_DIR"/*
+# Reset app dir (remove old root-owned files if present)
+sudo rm -rf "$APP_DIR"
+sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$APP_DIR"
 
 echo "[+] Extracting..."
-# --no-same-owner avoids chown attempts; --warning=no-unknown-keyword hides SCHILY.fflags noise
 tar --no-same-owner --warning=no-unknown-keyword -xzf /tmp/webscraper.tar.gz -C "$APP_DIR" --strip-components=1
 
 echo "[+] Creating Python venv..."
