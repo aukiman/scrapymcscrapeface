@@ -1,60 +1,108 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/scrapymcscrapeface.v1.tar.gz}"
+# ---------- Config (override via env if you want) ----------
 APP_DIR="${APP_DIR:-$HOME/webscraper}"
 
-echo "[+] Downloading code tarball..."
+# Tarball to install. You can override this by exporting REPO_TARBALL_URL=...
+REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/webscraper.v1.tar.gz}"
+
+# Optional: pin a checksum. Uncomment and set to enforce integrity.
+# EXPECTED_SHA256=""
+
+# ---------- Helpers ----------
+abort() { echo "ERROR: $*" >&2; exit 1; }
+log()   { echo "[+] $*"; }
+
+trap 'echo "Install failed at line $LINENO: $BASH_COMMAND" >&2' ERR
+
+# ---------- System deps (Ubuntu 20.04+) ----------
+log "Installing dependencies..."
+sudo apt update -y
+sudo apt install -y \
+  python3 python3-venv python3-pip curl git \
+  libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 \
+  libxcomposite1 libxrandr2 libgbm1 libasound2 >/dev/null
+
+# ---------- Fetch code tarball ----------
+log "Downloading code tarball..."
 curl -fsSL -L "$REPO_TARBALL_URL" -o /tmp/webscraper.tar.gz
 
-# Stop services if running (ignore errors)
+# Optional integrity check
+if [[ -n "${EXPECTED_SHA256:-}" ]]; then
+  echo "${EXPECTED_SHA256}  /tmp/webscraper.tar.gz" | sha256sum -c -
+fi
+
+# ---------- Stop services if already running ----------
 sudo systemctl stop "webscraper-webui@$(id -un)" "webscraper-scrapyd@$(id -un)" 2>/dev/null || true
 
-# Start fresh app dir owned by this user
+# ---------- Extract fresh into APP_DIR (root, then chown back) ----------
+log "Extracting..."
 sudo rm -rf "$APP_DIR"
 sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$APP_DIR"
 
-echo "[+] Extracting (staged)..."
-# Stage dir owned by root (avoids odd perms during extract)
-stage="$(sudo mktemp -d -p /tmp webscraper.stage.XXXXXX)"
-
-# Extract as root, ignore weird flags/owners from the tar
+# Extract as root into APP_DIR (avoid tar metadata issues), then give ownership to invoking user
 sudo tar --no-same-owner --no-same-permissions --warning=no-unknown-keyword \
-  -xzf /tmp/webscraper.tar.gz -C "$stage"
+     -xzf /tmp/webscraper.tar.gz -C "$APP_DIR" --strip-components=1
+sudo chown -R "$(id -un):$(id -gn)" "$APP_DIR"
 
-# Copy into APP_DIR with your user as final owner
-sudo rsync -a --delete --chown="$(id -un):$(id -gn)" "$stage"/ "$APP_DIR"/
-sudo rm -rf "$stage"
+# Prove we can write
+touch "$APP_DIR/.writetest" && rm "$APP_DIR/.writetest" || abort "Cannot write to $APP_DIR"
 
-# Robust copy into APP_DIR with your user as final owner
-sudo rsync -a --delete --chown="$(id -un):$(id -gn)" "$stage"/ "$APP_DIR"/
-rm -rf "$stage"
+# ---------- Python venv + deps ----------
+log "Creating Python venv..."
+python3 -m venv "$APP_DIR/.venv"
+source "$APP_DIR/.venv/bin/activate"
+pip install --upgrade pip wheel >/dev/null
 
-echo "[+] Creating Python venv..."
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip wheel
-pip install -r requirements.txt
+log "Installing Python packages..."
+if [[ -f "$APP_DIR/requirements.txt" ]]; then
+  pip install -r "$APP_DIR/requirements.txt"
+else
+  pip install scrapy scrapyd scrapyd-client scrapy-playwright playwright \
+              fastapi uvicorn[standard] httpx jinja2 python-multipart
+fi
 
-echo "[+] Installing Playwright browser deps..."
+log "Installing Playwright browser + OS deps..."
 python -m playwright install chromium
 python -m playwright install-deps || true
 
-echo "[+] Deploying Scrapy project to scrapyd (first time)..."
-( cd scraper && scrapyd-deploy )
-
-echo "[+] Creating outputs dir..."
-mkdir -p "$APP_DIR/outputs"
-
-echo "[+] Installing systemd units..."
+# ---------- Systemd units ----------
+log "Installing systemd units..."
 UNITD="/etc/systemd/system"
-sudo cp systemd/webscraper-scrapyd@.service "$UNITD/"
-sudo cp systemd/webscraper-webui@.service "$UNITD/"
+sudo cp "$APP_DIR/systemd/webscraper-scrapyd@.service" "$UNITD/"
+sudo cp "$APP_DIR/systemd/webscraper-webui@.service" "$UNITD/"
 sudo systemctl daemon-reload
 
+# ---------- Start Scrapyd first, wait until ready ----------
 ME="$(id -un)"
+
+log "Starting Scrapyd..."
 sudo systemctl enable "webscraper-scrapyd@$ME" --now
+
+log "Waiting for Scrapyd to answer..."
+for i in {1..60}; do
+  if curl -fsS http://127.0.0.1:6800/listprojects.json >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+  if [[ $i -eq 60 ]]; then
+    sudo journalctl -u "webscraper-scrapyd@$ME" --no-pager -n 100 >&2 || true
+    abort "Scrapyd did not start/respond on :6800"
+  fi
+done
+
+# ---------- Deploy Scrapy project ----------
+log "Deploying spiders to Scrapyd..."
+( cd "$APP_DIR/scraper" && scrapyd-deploy )
+
+# ---------- Create outputs dir ----------
+mkdir -p "$APP_DIR/outputs"
+
+# ---------- Start Web UI ----------
+log "Starting Web UI..."
 sudo systemctl enable "webscraper-webui@$ME" --now
 
-echo
-echo "All set. Open: http://$(hostname -I | awk '{print $1}'):8080"
+# ---------- Done ----------
+IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+log "All set. Open: http://${IP:-127.0.0.1}:8080 on your LAN"
