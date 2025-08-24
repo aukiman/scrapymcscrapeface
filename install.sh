@@ -17,15 +17,17 @@ curl -fsSL -L "$REPO_TARBALL_URL" -o /tmp/webscraper.tar.gz
 # Stop services if running (ignore errors)
 sudo systemctl stop "webscraper-webui@$(id -un)" "webscraper-scrapyd@$(id -un)" 2>/dev/null || true
 
-# Ensure APP_DIR exists and is owned by this user
+# Start fresh: ensure APP_DIR exists and is owned by this user
 sudo rm -rf "$APP_DIR"
 sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$APP_DIR"
 
 echo "[+] Extracting (staged)..."
 stage="$(mktemp -d -p /tmp webscraper.stage.XXXXXX)"
-tar --no-same-owner --warning=no-unknown-keyword -xzf /tmp/webscraper.tar.gz -C "$stage"
+# Use sudo for extraction to bypass any restrictive metadata inside the tarball
+sudo tar --no-same-owner --no-same-permissions --warning=no-unknown-keyword \
+  -xzf /tmp/webscraper.tar.gz -C "$stage"
 
-# Robust copy into APP_DIR with final ownership set to the invoking user
+# Robust copy into APP_DIR with your user as final owner
 sudo rsync -a --delete --chown="$(id -un):$(id -gn)" "$stage"/ "$APP_DIR"/
 rm -rf "$stage"
 
