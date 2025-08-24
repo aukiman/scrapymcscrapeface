@@ -71,18 +71,7 @@ Open **http://<server-ip>:8080** on your LAN.
 ## One-line install (production)
 
 The installer downloads a tarball of this project, installs all dependencies (including Playwright), deploys the Scrapy project to Scrapyd, and enables systemd services for both Scrapyd and the Web UI.
-
-1) Ensure `install.sh` points to **your** tarball (pick ONE):
-
-```bash
-# ✅ Recommended: Release asset URL
-REPO_TARBALL_URL="https://github.com/aukiman/scrapymcscrapeface/releases/download/v1.0.0/webscraper.v1.tar.gz"
-
-# ▶ Alternative: raw file in repo (works too)
-# REPO_TARBALL_URL="https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/webscraper.v1.tar.gz"
-```
-
-2) On your Ubuntu server (20.04+):
+On your Ubuntu server (20.04+):
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/install.sh)"
