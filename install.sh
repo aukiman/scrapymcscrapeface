@@ -17,18 +17,14 @@ curl -fsSL -L "$REPO_TARBALL_URL" -o /tmp/webscraper.tar.gz
 # Stop services if running (ignore errors)
 sudo systemctl stop "webscraper-webui@$(id -un)" "webscraper-scrapyd@$(id -un)" 2>/dev/null || true
 
-# Ensure the app dir exists and is writable by this user
-mkdir -p "$APP_DIR"
-sudo chown -R "$(id -un)":"$(id -gn)" "$APP_DIR"
-
-# Start with a clean tree without permission issues
-sudo chown -R "$(id -un)":"$(id -gn)" "$APP_DIR"
-rm -rf "$APP_DIR"/*
+# Start fresh: remove any previous root-owned tree, then recreate owned by this user
+sudo rm -rf "$APP_DIR"
+sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$APP_DIR"
 
 echo "[+] Extracting..."
-# --no-same-owner avoids restoring root ownership from the tarball
-# --warning=no-unknown-keyword hides harmless SCHILY.fflags messages
-tar --no-same-owner --warning=no-unknown-keyword -xzf /tmp/webscraper.tar.gz -C "$APP_DIR" --strip-components=1
+# Avoid preserving archive owners; hide harmless SCHILY.fflags warnings
+tar --no-same-owner --warning=no-unknown-keyword \
+    -xzf /tmp/webscraper.tar.gz -C "$APP_DIR" --strip-components=1
 
 echo "[+] Creating Python venv..."
 python3 -m venv .venv
