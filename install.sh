@@ -4,7 +4,7 @@ umask 022
 
 # ---------- Config ----------
 APP_DIR="${APP_DIR:-$HOME/webscraper}"
-REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/webscraper.v1.tar.gz}"
+REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/scrapymcscrapeface.v1.tar.gz}"
 # EXPECTED_SHA256=""   # optional: pin checksum
 
 log() { echo "[+] $*"; }
