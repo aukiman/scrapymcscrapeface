@@ -30,7 +30,7 @@ curl -fsSL -L "$REPO_TARBALL_URL" -o /tmp/webscraper.tar.gz
 # ---------- Stop services if running ----------
 sudo systemctl stop "webscraper-webui@$(id -un)" "webscraper-scrapyd@$(id -un)" 2>/dev/null || true
 
-# ---------- Extract fresh into APP_DIR (no staging) ----------
+# ---------- Extract fresh into APP_DIR ----------
 log "Extracting..."
 sudo rm -rf "$APP_DIR"
 sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$APP_DIR"
@@ -40,7 +40,10 @@ sudo tar --no-same-owner --no-same-permissions --warning=no-unknown-keyword \
      -xzf /tmp/webscraper.tar.gz -C "$APP_DIR" --strip-components=1
 sudo chown -R "$(id -un):$(id -gn)" "$APP_DIR"
 
-# Write test
+# Ensure user write perms across the tree (guards against read-only files in the tar)
+chmod -R u+rwX "$APP_DIR"
+
+# Quick write test
 touch "$APP_DIR/.writetest" && rm "$APP_DIR/.writetest" || die "Cannot write to $APP_DIR"
 
 # ---------- Python venv + deps ----------
@@ -83,6 +86,13 @@ for i in {1..60}; do
 done
 
 # ---------- Deploy Scrapy project ----------
+# Make absolutely sure the deploy dir is writable (prevents setup.py PermissionError)
+sudo chown -R "$(id -un):$(id -gn)" "$APP_DIR/scraper"
+chmod -R u+rwX "$APP_DIR/scraper"
+rm -f "$APP_DIR/scraper/setup.py" 2>/dev/null || true
+sudo chattr -i "$APP_DIR/scraper/setup.py" 2>/dev/null || true
+sudo chattr -i "$APP_DIR/scraper" 2>/dev/null || true
+
 log "Deploying spiders to Scrapyd..."
 ( cd "$APP_DIR/scraper" && scrapyd-deploy )
 
