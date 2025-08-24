@@ -12,8 +12,21 @@ mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
 echo "[+] Downloading code tarball..."
-curl -fsSL -L "$REPO_TARBALL_URL" -o webscraper.tar.gz
-tar -xzf webscraper.tar.gz --strip-components=1
+curl -fsSL -L "$REPO_TARBALL_URL" -o /tmp/webscraper.tar.gz
+
+# Create/own the app dir (don’t extract into a root-owned folder)
+mkdir -p "$APP_DIR"
+# If this folder has root-owned leftovers from a previous run, fix them:
+if [ ! -w "$APP_DIR" ]; then
+  sudo chown -R "$(id -un)":"$(id -gn)" "$APP_DIR"
+fi
+
+# Optional: start with a clean tree (comment out if you want to preserve local changes)
+rm -rf "$APP_DIR"/*
+
+echo "[+] Extracting..."
+# --no-same-owner avoids chown attempts; --warning=no-unknown-keyword hides SCHILY.fflags noise
+tar --no-same-owner --warning=no-unknown-keyword -xzf /tmp/webscraper.tar.gz -C "$APP_DIR" --strip-components=1
 
 echo "[+] Creating Python venv..."
 python3 -m venv .venv
