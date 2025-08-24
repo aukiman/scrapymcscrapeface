@@ -22,6 +22,7 @@ mkdir -p "$APP_DIR"
 sudo chown -R "$(id -un)":"$(id -gn)" "$APP_DIR"
 
 # Start with a clean tree without permission issues
+sudo chown -R "$(id -un)":"$(id -gn)" "$APP_DIR"
 rm -rf "$APP_DIR"/*
 
 echo "[+] Extracting..."
