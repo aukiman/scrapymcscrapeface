@@ -5,7 +5,7 @@ umask 022
 # ---------- Config ----------
 APP_DIR="${APP_DIR:-$HOME/webscraper}"
 REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/scrapymcscrapeface.v1.tar.gz}"
-# EXPECTED_SHA256=""   # optional: pin checksum
+# EXPECTED_SHA256=""   # optional: add a checksum and enforce it
 
 log() { echo "[+] $*"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -35,12 +35,12 @@ log "Extracting..."
 sudo rm -rf "$APP_DIR"
 sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$APP_DIR"
 
-# Extract as root (avoids tar metadata weirdness), then give it back to your user
+# Extract as root (avoid tar metadata weirdness), then hand ownership back
 sudo tar --no-same-owner --no-same-permissions --warning=no-unknown-keyword \
      -xzf /tmp/webscraper.tar.gz -C "$APP_DIR" --strip-components=1
 sudo chown -R "$(id -un):$(id -gn)" "$APP_DIR"
 
-# Quick write test
+# Write test
 touch "$APP_DIR/.writetest" && rm "$APP_DIR/.writetest" || die "Cannot write to $APP_DIR"
 
 # ---------- Python venv + deps ----------
