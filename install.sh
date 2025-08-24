@@ -4,28 +4,27 @@ set -euo pipefail
 REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://raw.githubusercontent.com/aukiman/scrapymcscrapeface/main/release/scrapymcscrapeface.v1.tar.gz}"
 APP_DIR="${APP_DIR:-$HOME/webscraper}"
 
-echo "[+] Installing dependencies..."
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip curl git libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libasound2
-
-mkdir -p "$APP_DIR"
-cd "$APP_DIR"
-
 echo "[+] Downloading code tarball..."
 curl -fsSL -L "$REPO_TARBALL_URL" -o /tmp/webscraper.tar.gz
 
 # Stop services if running (ignore errors)
 sudo systemctl stop "webscraper-webui@$(id -un)" "webscraper-scrapyd@$(id -un)" 2>/dev/null || true
 
-# Start fresh: ensure APP_DIR exists and is owned by this user
+# Start fresh app dir owned by this user
 sudo rm -rf "$APP_DIR"
 sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" "$APP_DIR"
 
 echo "[+] Extracting (staged)..."
-stage="$(mktemp -d -p /tmp webscraper.stage.XXXXXX)"
-# Use sudo for extraction to bypass any restrictive metadata inside the tarball
+# Stage dir owned by root (avoids odd perms during extract)
+stage="$(sudo mktemp -d -p /tmp webscraper.stage.XXXXXX)"
+
+# Extract as root, ignore weird flags/owners from the tar
 sudo tar --no-same-owner --no-same-permissions --warning=no-unknown-keyword \
   -xzf /tmp/webscraper.tar.gz -C "$stage"
+
+# Copy into APP_DIR with your user as final owner
+sudo rsync -a --delete --chown="$(id -un):$(id -gn)" "$stage"/ "$APP_DIR"/
+sudo rm -rf "$stage"
 
 # Robust copy into APP_DIR with your user as final owner
 sudo rsync -a --delete --chown="$(id -un):$(id -gn)" "$stage"/ "$APP_DIR"/
