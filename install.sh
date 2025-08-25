@@ -60,9 +60,18 @@ else
               fastapi uvicorn[standard] httpx jinja2 python-multipart
 fi
 
+# ---------- Playwright browsers & OS deps ----------
 log "Installing Playwright browser + OS deps..."
-python -m playwright install chromium
-python -m playwright install-deps || true
+# Install the Chromium browser as the (non-root) owner so caches live in their $HOME
+if [[ -n "${SUDO_USER-}" && "$SUDO_USER" != "root" ]]; then
+  sudo -u "$SUDO_USER" -H "$APP_DIR/.venv/bin/playwright" install chromium
+else
+  "$APP_DIR/.venv/bin/playwright" install chromium
+fi
+# Install required system libraries via apt (needs sudo)
+sudo "$APP_DIR/.venv/bin/playwright" install-deps
+
+deactivate
 
 # ---------- Systemd units ----------
 log "Installing systemd units..."
@@ -94,7 +103,7 @@ sudo chattr -i "$APP_DIR/scraper/setup.py" 2>/dev/null || true
 sudo chattr -i "$APP_DIR/scraper" 2>/dev/null || true
 
 log "Deploying spiders to Scrapyd..."
-( cd "$APP_DIR/scraper" && scrapyd-deploy )
+( cd "$APP_DIR/scraper" && "$APP_DIR/.venv/bin/scrapyd-deploy" )
 
 # ---------- Output dir ----------
 mkdir -p "$APP_DIR/outputs"
