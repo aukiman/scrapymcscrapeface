@@ -1,10 +1,10 @@
 scrapy
 scrapyd
 scrapyd-client
-scrapy-playwright
+scrapy-playwright>=0.0.36
 fastapi
 jinja2
 uvicorn[standard]
 httpx
 python-multipart
-playwright
+playwright>=1.45
